@@ -11,7 +11,6 @@ from rag_project.constants import (
     LLAMA_MODEL_PATH,
 )
 
-
 PROMPT_TEMPLATE: str = """
 [INST] <<SYS>>
 You are a clear and concise assistant specialized in summarization and explanation.

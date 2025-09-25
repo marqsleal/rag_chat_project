@@ -86,7 +86,8 @@ get_azure_data:
 ## Fix Pip
 .PHONY: fix_pip
 fix_pip:
-	curl -sS https://bootstrap.pypa.io/get-pip.py | python
+	@curl -sS https://bootstrap.pypa.io/get-pip.py | $(VENV_BIN)/python && \
+	@$(VENV_BIN)/python -m pip install --upgrade pip setuptools wheel
 
 
 #################################################################################

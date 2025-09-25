@@ -83,6 +83,12 @@ get_azure_data:
 	@$(PYTHON_INTERPRETER) rag_project/azure_get_data.py
 
 
+## Fix Pip
+.PHONY: fix_pip
+fix_pip:
+	curl -sS https://bootstrap.pypa.io/get-pip.py | python
+
+
 #################################################################################
 # PROJECT RULES                                                                 #
 #################################################################################

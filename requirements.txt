@@ -1,0 +1,22 @@
+ipython
+jupyterlab
+matplotlib
+notebook
+numpy
+pandas
+pip
+pytest
+python-dotenv
+ruff
+scikit-learn
+langchain
+langchain-community
+langchain-openai
+unstructured
+onnxruntime
+chromadb
+openai
+tiktoken
+unstructured[md]
+sentence-transformers
+-e .

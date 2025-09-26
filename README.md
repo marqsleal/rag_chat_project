@@ -14,6 +14,7 @@ rag_chat_project/
 ├── requirements.txt            # Dependências Python
 ├── data/                    
 │   ├── books/                  # Livros em formato .md
+│   │   └── alice_in_wonderland.md
 │   └── chroma-db/              # Bases vetoriais ChromaDB
 │       └── books/              # Collection de livros
 ├── models/                  
@@ -23,13 +24,23 @@ rag_chat_project/
 │   ├── 002__RAG__QUERY_DATA.ipynb          # Testes de consulta
 │   └── 003__RAG__QUERY_ENGINE.ipynb        # Engine completo
 ├── rag_project/                # Código fonte
+│   ├── __init__.py             # Inicialização do pacote
+│   ├── app.py                  # Dashboard Streamlit (Interface Web)
 │   ├── constants.py            # Configurações e constantes
 │   ├── rag_models.py          # Modelos Pydantic (LLMConfig, RAGResponse)
 │   ├── compare_embeddings.py  # Utilitários de embeddings
 │   ├── create_chroma_database.py  # Criação de bases vetoriais
 │   ├── query_data.py          # RAG Engine principal
+│   ├── azure_get_data.py      # Utilitário para dados do Azure
 │   └── logger.py              # Sistema de logging
-└── tests/                     # Testes unitários
+├── tests/                     # Testes unitários
+│   ├── test_compare_embeddings.py
+│   ├── test_create_chroma_database.py
+│   └── test_query_data.py
+├── logs/                      # Arquivos de log
+├── docs/                      # Documentação adicional
+└── reports/                   # Relatórios e figuras
+    └── figures/
 ```
 
 ## O que é RAG?

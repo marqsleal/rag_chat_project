@@ -128,3 +128,9 @@ get_azure_data:
 fix_pip:
 	@curl -sS https://bootstrap.pypa.io/get-pip.py | $(VENV_BIN)/python && \
 	$(VENV_BIN)/python -m pip install --upgrade pip setuptools wheel
+
+
+## Streamlit
+.PHONY: streamlit
+streamlit:
+	@$(VENV_BIN)/python -m streamlit run rag_project/app.py --server.port 8501 --server.address localhost

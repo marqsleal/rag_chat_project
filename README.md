@@ -67,7 +67,7 @@ Pergunta → Embeddings → Busca no ChromaDB → Documentos Relevantes → LLM 
 
 ```bash
 # Clonar o repositório
-git clone <repository-url>
+git clone https://github.com/marqsleal/rag_chat_project.git
 cd rag_chat_project
 
 # Inicializar ambiente completo (venv + dependências + modelo)

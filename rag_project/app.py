@@ -1,9 +1,3 @@
-"""
-RAG Query Engine Streamlit Application
-
-This application provides a graphical interface for the RAGQueryEngine.
-"""
-
 import os
 import time
 
@@ -21,14 +15,29 @@ from rag_project.create_chroma_database import create_chroma_db
 from rag_project.query_data import create_rag_engine
 from rag_project.rag_models import DEFAULT_PROMPT_TEMPLATE, LLMConfig
 
-# Page configuration
 st.set_page_config(
     page_title="RAG Query Engine", page_icon="📚", layout="wide", initial_sidebar_state="expanded"
 )
 
-# Custom CSS for better styling
-st.markdown(
-    """
+UI_CONSTANTS = {
+    "MAIN_HEADER_CLASS": "main    tab1, tab2, tab3 = st.tabs([eader",
+    "SECTION_HEADER_CLASS": "section-header",
+    "CONFIG_CONTAINER_START": '<div class="config-container">',
+    "CONFIG_CONTAINER_END": "</div>",
+    "RESPONSE_CONTAINER_START": '<div class="response-container">',
+    "RESPONSE_CONTAINER_END": "</div>",
+    "ERROR_CONTAINER_START": '<div class="error-container">',
+    "ERROR_CONTAINER_END": "</div>",
+    "METRIC_CONTAINER_START": '<div class="metric-container">',
+    "METRIC_CONTAINER_END": "</div>",
+}
+
+PROMPT_OPTIONS = {"DEFAULT": "🎯 Usar prompt padrão", "CUSTOM": "✏️ Prompt personalizado"}
+
+TEMPLATE_PLACEHOLDERS = {"CONTEXT": "{context}", "QUESTION": "{question}"}
+
+DB_FILE_NAME = "chroma.sqlite3"
+CSS_STYLES = """
 <style>
     .main-header {
         font-size: 2.5rem;
@@ -115,12 +124,29 @@ st.markdown(
         }
     }
 </style>
-""",
-    unsafe_allow_html=True,
-)
+"""
+
+st.markdown(CSS_STYLES, unsafe_allow_html=True)
 
 
-# Collection configurations
+PREDEFINED_QUERIES = {
+    "books": [
+        "Who is the White Rabbit and how does Alice first meet him?",
+        "What does Alice drink or eat that makes her change size?",
+        "Describe the Duchess's kitchen and what happens there",
+        "What games are played in Wonderland?",
+        "What poems or songs are recited in the story?",
+        "How does Alice's adventure end?",
+    ],
+    "azure": [
+        "What is Azure Virtual Network?",
+        "How to create a storage account in Azure?",
+        "What are the different types of Azure databases?",
+        "How to configure Azure Active Directory?",
+        "What is Azure Kubernetes Service?",
+    ],
+}
+
 AVAILABLE_COLLECTIONS = {
     "books": {
         "name": "📚 Books (Alice in Wonderland)",
@@ -129,6 +155,7 @@ AVAILABLE_COLLECTIONS = {
         "description": "Coleção com o livro Alice in Wonderland",
         "data_dir": BOOKS_RAW_DATA_DIR,
         "enabled": True,
+        "example_queries": PREDEFINED_QUERIES["books"],
     },
     "azure": {
         "name": "☁️ Azure Documentation (Em Construção)",
@@ -137,12 +164,11 @@ AVAILABLE_COLLECTIONS = {
         "description": "Coleção com documentação do Azure - Em desenvolvimento",
         "data_dir": AZURE_RAW_DATA_DIR,
         "enabled": False,
+        "example_queries": PREDEFINED_QUERIES["azure"],
     },
 }
 
-# Using the default prompt template from rag_models
 
-# LLM Configuration Profiles based on notebook 002
 LLM_PROFILES = {
     "default": {
         "name": "🎯 Padrão (Balanceado)",
@@ -180,7 +206,7 @@ LLM_PROFILES = {
             top_p=0.95,
             repetition_penalty=1.0,
             context_length=2048,
-            seed=-1,  # Use -1 for random seed
+            seed=-1,
         ),
     },
     "detailed": {
@@ -199,59 +225,64 @@ LLM_PROFILES = {
 }
 
 
+def validate_custom_prompt(prompt: str) -> tuple[bool, str]:
+    if not prompt or not prompt.strip():
+        return False, "Prompt não pode estar vazio"
+
+    if TEMPLATE_PLACEHOLDERS["CONTEXT"] not in prompt:
+        return False, f"Prompt deve conter {TEMPLATE_PLACEHOLDERS['CONTEXT']}"
+
+    if TEMPLATE_PLACEHOLDERS["QUESTION"] not in prompt:
+        return False, f"Prompt deve conter {TEMPLATE_PLACEHOLDERS['QUESTION']}"
+
+    return True, ""
+
+
+def get_enabled_collections() -> dict:
+    return {
+        key: config for key, config in AVAILABLE_COLLECTIONS.items() if config.get("enabled", True)
+    }
+
+
+def get_disabled_collections() -> dict:
+    return {
+        key: config
+        for key, config in AVAILABLE_COLLECTIONS.items()
+        if not config.get("enabled", True)
+    }
+
+
+def database_exists(collection_config: dict) -> bool:
+    db_file = os.path.join(collection_config["path"], DB_FILE_NAME)
+    return os.path.exists(db_file)
+
+
 def ensure_chroma_database(collection_config: dict) -> tuple[bool, str]:
-    """
-    Ensure that the Chroma database exists for the collection.
-    Creates it if it doesn't exist.
-
-    Args:
-        collection_config: Configuration dictionary for the collection
-
-    Returns:
-        Tuple of (success, error_message)
-    """
-    chroma_path = collection_config["path"]
-
-    # Check if the database already exists (look for chroma.sqlite3 file)
-    db_file = os.path.join(chroma_path, "chroma.sqlite3")
-    if os.path.exists(db_file):
+    if database_exists(collection_config):
         return True, ""
-
-    # Database doesn't exist, create it
     try:
         data_dir = collection_config["data_dir"]
-
-        # Check if source data exists
         if not os.path.exists(data_dir):
-            error_msg = f"Diretório de dados não encontrado: {data_dir}"
-            return False, error_msg
-
-        # Create the database
+            return False, f"Diretório de dados não encontrado: {data_dir}"
         success = create_chroma_db(
             data_dir=data_dir,
-            chroma_db_dir=chroma_path,
+            chroma_db_dir=collection_config["path"],
             collection_name=collection_config["collection_name"],
         )
 
         if not success:
-            error_msg = f"Falha ao criar base de dados para {collection_config['name']}"
-            return False, error_msg
+            return False, f"Falha ao criar base de dados para {collection_config['name']}"
 
         return True, ""
 
     except Exception as e:
-        error_msg = f"Erro ao criar base de dados: {str(e)}"
-        return False, error_msg
+        return False, f"Erro ao criar base de dados: {str(e)}"
 
 
 @st.cache_resource
 def initialize_rag_engine(collection_key: str, profile_key: str, custom_prompt: str = ""):
-    """Initialize and cache the RAG Query Engine with selected configuration."""
     try:
-        # Get collection configuration
         collection_config = AVAILABLE_COLLECTIONS[collection_key]
-
-        # Ensure the Chroma database exists
         with st.spinner(f"Verificando base de dados para {collection_config['name']}..."):
             db_success, db_error = ensure_chroma_database(collection_config)
 
@@ -259,7 +290,6 @@ def initialize_rag_engine(collection_key: str, profile_key: str, custom_prompt: 
                 return None, db_error, None, None
 
         with st.spinner("Inicializando RAG Query Engine..."):
-            # Get LLM profile configuration
             profile_config = LLM_PROFILES[profile_key]
             llm_config = profile_config["config"]
 
@@ -275,18 +305,15 @@ def initialize_rag_engine(collection_key: str, profile_key: str, custom_prompt: 
 
 
 def show_configuration_page():
-    """Show the configuration page for selecting collection and LLM profile."""
     st.markdown(
         '<h1 class="main-header">⚙️ Configuração do RAG Query Engine</h1>', unsafe_allow_html=True
     )
     st.markdown("Configure a coleção de documentos e o perfil do modelo antes de iniciar.")
     st.info("💡 A base de dados será criada automaticamente se não existir.")
 
-    # Collection selection
     st.markdown('<div class="config-container">', unsafe_allow_html=True)
     st.subheader("📂 Seleção da Coleção")
 
-    # Filter only enabled collections for selection
     enabled_collections = {
         key: config for key, config in AVAILABLE_COLLECTIONS.items() if config.get("enabled", True)
     }
@@ -299,7 +326,6 @@ def show_configuration_page():
         key="collection_select",
     )
 
-    # Show info about disabled collections
     disabled_collections = {
         key: config
         for key, config in AVAILABLE_COLLECTIONS.items()
@@ -311,7 +337,6 @@ def show_configuration_page():
             st.write(f"• {config['name']} - {config['description']}")
         st.write("Essas coleções estarão disponíveis em breve.")
 
-    # Show collection description
     if selected_collection:
         collection_config = AVAILABLE_COLLECTIONS[selected_collection]
         st.info(f"📝 {collection_config['description']}")
@@ -321,7 +346,6 @@ def show_configuration_page():
             st.write(f"**Caminho dos dados:** `{collection_config['data_dir']}`")
             st.write(f"**Nome da coleção:** `{collection_config['collection_name']}`")
 
-            # Check if database exists
             db_file = os.path.join(collection_config["path"], "chroma.sqlite3")
             if os.path.exists(db_file):
                 st.success("✅ Base de dados já existe")
@@ -330,7 +354,6 @@ def show_configuration_page():
 
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # LLM Profile selection
     st.markdown('<div class="config-container">', unsafe_allow_html=True)
     st.subheader("🤖 Perfil do Modelo LLM")
 
@@ -342,7 +365,6 @@ def show_configuration_page():
         key="profile_select",
     )
 
-    # Show profile description and details
     if selected_profile:
         profile_config = LLM_PROFILES[selected_profile]
         st.info(f"📝 {profile_config['description']}")
@@ -365,17 +387,16 @@ def show_configuration_page():
 
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # Prompt Template Configuration
     st.markdown('<div class="config-container">', unsafe_allow_html=True)
     st.subheader("📝 Configuração do Prompt")
 
     use_default_prompt = st.radio(
         "Escolha o tipo de prompt:",
-        options=["🎯 Usar prompt padrão", "✏️ Prompt personalizado"],
+        options=[PROMPT_OPTIONS["DEFAULT"], PROMPT_OPTIONS["CUSTOM"]],
         key="prompt_type_select",
     )
 
-    if use_default_prompt == "🎯 Usar prompt padrão":
+    if use_default_prompt == PROMPT_OPTIONS["DEFAULT"]:
         st.info("📋 Usando o prompt padrão otimizado para RAG")
         with st.expander("👀 Visualizar prompt padrão"):
             st.code(DEFAULT_PROMPT_TEMPLATE.strip(), language="text")
@@ -394,59 +415,39 @@ def show_configuration_page():
             key="custom_prompt_input",
         )
 
-        # Validate custom prompt
         if custom_prompt:
-            if "{context}" not in custom_prompt or "{question}" not in custom_prompt:
-                st.warning(
-                    "⚠️ Seu prompt deve conter `{context}` e `{question}` para funcionar corretamente!"
-                )
+            is_valid, error_msg = validate_custom_prompt(custom_prompt)
+            if not is_valid:
+                st.warning(f"⚠️ {error_msg}")
             else:
                 st.success("✅ Prompt válido!")
 
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # Initialization button
     st.markdown("---")
     col1, col2, _ = st.columns([1, 2, 1])
 
     with col2:
         if st.button("🚀 Inicializar RAG Query Engine", type="primary", use_container_width=True):
-            # Validate custom prompt if selected
-            if use_default_prompt == "✏️ Prompt personalizado" and (
-                not custom_prompt
-                or "{context}" not in custom_prompt
-                or "{question}" not in custom_prompt
-            ):
-                st.error("❌ Por favor, configure um prompt válido com {context} e {question}")
-                st.stop()
+            if use_default_prompt == PROMPT_OPTIONS["CUSTOM"]:
+                is_valid, error_msg = validate_custom_prompt(custom_prompt or "")
+                if not is_valid:
+                    st.error(f"❌ {error_msg}")
+                    st.stop()
 
-            # Store configuration in session state
             st.session_state.selected_collection = selected_collection
             st.session_state.selected_profile = selected_profile
             st.session_state.custom_prompt = (
-                custom_prompt if use_default_prompt == "✏️ Prompt personalizado" else None
+                custom_prompt if use_default_prompt == PROMPT_OPTIONS["CUSTOM"] else None
             )
             st.session_state.engine_initialized = False
             st.session_state.show_config = False
             st.rerun()
 
-    # Show example queries for the selected collection
-    if selected_collection == "books":
-        st.markdown("---")
-        st.subheader("📖 Exemplos de consultas para Alice in Wonderland")
-        example_queries = [
-            "Who is the White Rabbit and how does Alice first meet him?",
-            "What does Alice drink or eat that makes her change size?",
-            "Describe the Duchess's kitchen and what happens there",
-            "What games are played in Wonderland?",
-            "How does Alice's adventure end?",
-        ]
-        for query in example_queries:
-            st.write(f"• {query}")
+    show_example_queries(selected_collection)
 
 
 def display_response_metadata(response):
-    """Display response metadata in a formatted way."""
     col1, col2, col3 = st.columns(3)
 
     with col1:
@@ -461,20 +462,49 @@ def display_response_metadata(response):
             st.metric("Score Médio", f"{avg_score:.3f}")
 
 
+def render_container(container_type: str, content_func, **kwargs):
+    container_key = f"{container_type.upper()}_CONTAINER"
+    start_tag = UI_CONSTANTS.get(f"{container_key}_START")
+    end_tag = UI_CONSTANTS.get(f"{container_key}_END")
+
+    if start_tag:
+        st.markdown(start_tag, unsafe_allow_html=True)
+
+    if callable(content_func):
+        content_func(**kwargs)
+    else:
+        st.write(content_func)
+
+    if end_tag:
+        st.markdown(end_tag, unsafe_allow_html=True)
+
+
+def show_example_queries(collection_key: str):
+    if collection_key in AVAILABLE_COLLECTIONS and AVAILABLE_COLLECTIONS[collection_key].get(
+        "enabled"
+    ):
+        collection_config = AVAILABLE_COLLECTIONS[collection_key]
+        queries = collection_config.get("example_queries", [])
+
+        if queries:
+            st.markdown("---")
+            collection_name = collection_config["name"]
+            st.subheader(f"📖 Exemplos de consultas para {collection_name}")
+
+            for query in queries:
+                st.write(f"• {query}")
+
+
 def execute_query_with_custom_prompt(engine, query, documents_retrieve, custom_prompt=None):
-    """Execute query with custom prompt if provided."""
     if custom_prompt:
-        # Use query_with_metadata with custom prompt template
         return engine.query_with_metadata(
             query, documents_retrieve=documents_retrieve, prompt_template=custom_prompt
         )
     else:
-        # Use default query method
         return engine.query_with_metadata(query, documents_retrieve=documents_retrieve)
 
 
 def main():
-    # Initialize session state
     if "show_config" not in st.session_state:
         st.session_state.show_config = True
     if "engine_initialized" not in st.session_state:
@@ -486,18 +516,15 @@ def main():
     if "custom_prompt" not in st.session_state:
         st.session_state.custom_prompt = None
 
-    # Show configuration page if not configured yet
     if st.session_state.show_config:
         show_configuration_page()
         return
 
-    # Header
     st.markdown(
         '<h1 class="main-header">📚 RAG Query Engine Interface</h1>', unsafe_allow_html=True
     )
     st.markdown("Interface gráfica para testar o RAG Query Engine")
 
-    # Initialize engine with selected configuration
     if not st.session_state.engine_initialized:
         custom_prompt = st.session_state.custom_prompt or ""
         engine, error, collection_config, profile_config = initialize_rag_engine(
@@ -506,7 +533,6 @@ def main():
 
         if error:
             st.error(f"Erro ao inicializar o RAG Query Engine: {error}")
-            # Button to go back to configuration
             if st.button("⚙️ Voltar para Configuração"):
                 st.session_state.show_config = True
                 st.rerun()
@@ -514,33 +540,27 @@ def main():
 
         if engine is None:
             st.error("Falha ao inicializar o RAG Query Engine")
-            # Button to go back to configuration
             if st.button("⚙️ Voltar para Configuração"):
                 st.session_state.show_config = True
                 st.rerun()
             st.stop()
 
-        # Store in session state
         st.session_state.engine = engine
         st.session_state.collection_config = collection_config
         st.session_state.profile_config = profile_config
         st.session_state.engine_initialized = True
 
-    # Get engine from session state
     engine = st.session_state.engine
     collection_config = st.session_state.collection_config
     profile_config = st.session_state.profile_config
 
-    # Sidebar for configuration
     st.sidebar.header("⚙️ Configurações")
 
-    # Show current configuration
     with st.sidebar.expander("📋 Configuração Atual", expanded=True):
         if collection_config and profile_config:
             st.write(f"**Coleção:** {collection_config['name']}")
             st.write(f"**Perfil LLM:** {profile_config['name']}")
 
-            # Show prompt configuration
             if st.session_state.custom_prompt:
                 st.write("**Prompt:** ✏️ Personalizado")
                 with st.expander("Ver prompt personalizado"):
@@ -548,24 +568,20 @@ def main():
             else:
                 st.write("**Prompt:** 🎯 Padrão")
 
-        # Button to reconfigure
         if st.button("🔄 Reconfigurar", use_container_width=True):
             st.session_state.show_config = True
             st.session_state.engine_initialized = False
             st.rerun()
 
-    # Display engine info
     with st.sidebar.expander("ℹ️ Informações do Engine"):
         config_info = engine.get_config_info()
         for key, value in config_info.items():
             st.write(f"**{key}:** {value}")
 
-    # Query parameters
     st.sidebar.subheader("Parâmetros da Consulta")
     documents_retrieve = st.sidebar.slider("Documentos a recuperar", 1, 10, 3)
     min_similarity_score = st.sidebar.slider("Score mínimo de similaridade", 0.0, 1.0, 0.3, 0.1)
 
-    # Main content tabs
     tab1, tab2, tab3 = st.tabs(
         [
             "🔍 Consulta Básica",
@@ -574,20 +590,12 @@ def main():
         ]
     )
 
-    # Tab 1: Basic Query
     with tab1:
         st.markdown('<h2 class="section-header">Consulta Básica</h2>', unsafe_allow_html=True)
         st.write("Teste a funcionalidade básica de consulta que retorna apenas a resposta.")
 
-        # Predefined queries
-        predefined_queries = [
-            "Who is the White Rabbit and how does Alice first meet him?",
-            "What does Alice drink or eat that makes her change size?",
-            "Describe the Duchess's kitchen and what happens there",
-            "What games are played in Wonderland?",
-            "What poems or songs are recited in the story?",
-            "How does Alice's adventure end?",
-        ]
+        collection_config = st.session_state.get("collection_config", {})
+        predefined_queries = collection_config.get("example_queries", PREDEFINED_QUERIES["books"])
 
         selected_query = st.selectbox(
             "Escolha uma consulta predefinida:",
@@ -608,7 +616,6 @@ def main():
                     start_time = time.time()
                     try:
                         if st.session_state.custom_prompt:
-                            # Para consulta básica com prompt personalizado, usar query com template
                             response = engine.query_with_metadata(
                                 query_input,
                                 documents_retrieve=documents_retrieve,
@@ -635,7 +642,6 @@ def main():
             else:
                 st.warning("Por favor, digite uma consulta.")
 
-    # Tab 2: Query with Metadata
     with tab2:
         st.markdown(
             '<h2 class="section-header">Consulta com Metadados</h2>', unsafe_allow_html=True
@@ -677,7 +683,6 @@ def main():
                         st.write("**Pergunta:**", response.query)
                         st.write("**Resposta:**", response.answer)
 
-                        # Metadata display
                         st.markdown('<div class="metric-container">', unsafe_allow_html=True)
                         display_response_metadata(response)
                         st.markdown("</div>", unsafe_allow_html=True)
@@ -695,7 +700,6 @@ def main():
                         st.write(f"**Tempo de resposta:** {end_time - start_time:.2f} segundos")
                         st.markdown("</div>", unsafe_allow_html=True)
 
-                        # Formatted response
                         st.subheader("📋 Resposta Formatada")
                         sources_str = (
                             ", ".join([s for s in response.sources if s is not None])
@@ -712,14 +716,12 @@ def main():
             else:
                 st.warning("Por favor, digite uma consulta.")
 
-    # Tab 3: Multiple Queries
     with tab3:
         st.markdown(
             '<h2 class="section-header">Teste de Consultas Múltiplas</h2>', unsafe_allow_html=True
         )
         st.write("Teste múltiplas consultas de uma vez para comparar performance e resultados.")
 
-        # Select queries to test
         selected_queries = st.multiselect(
             "Selecione as consultas para testar:",
             predefined_queries,
@@ -752,7 +754,6 @@ def main():
                                 )
                             query_end_time = time.time()
 
-                        # Display results in columns
                         col1, col2 = st.columns([2, 1])
 
                         with col1:
@@ -783,7 +784,6 @@ def main():
             else:
                 st.warning("Por favor, selecione pelo menos uma consulta.")
 
-    # Footer
     st.divider()
     st.markdown("---")
     st.markdown(f"**RAG Query Engine Interface** | Engine: {engine}")

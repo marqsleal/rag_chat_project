@@ -97,6 +97,36 @@ response = engine.query("What is Alice in Wonderland about?")
 print(response)
 ```
 
+### 4. Interface Web com Streamlit
+
+```bash
+# Iniciar o dashboard interativo
+make streamlit
+```
+
+O dashboard Streamlit oferece uma interface gráfica completa para interagir com o sistema RAG:
+
+#### Funcionalidades do Dashboard
+- **🔧 Configuração Interativa**: Selecione coleções de documentos e perfis de LLM
+- **📝 Prompt Personalizado**: Configure prompts customizados para diferentes casos de uso
+- **🔍 Consulta Básica**: Interface simples para consultas rápidas
+- **📊 Consulta com Metadados**: Visualize informações detalhadas sobre fontes e scores
+- **⚖️ Consultas Múltiplas**: Compare resultados de várias consultas simultaneamente
+
+#### Perfis de LLM Disponíveis
+| Perfil | Descrição | Casos de Uso |
+|--------|-----------|---------------|
+| **🎯 Padrão** | Balanceado para uso geral | Consultas cotidianas |
+| **🛡️ Conservador** | Respostas precisas e determinísticas | Análises técnicas |
+| **🎨 Criativo** | Respostas variadas e criativas | Brainstorming |
+| **📝 Detalhado** | Respostas longas e abrangentes | Explicações complexas |
+
+#### Acesso ao Dashboard
+Após executar `make streamlit`, acesse:
+- **URL Local**: http://localhost:8501
+- **Porta padrão**: 8501
+- **Interface responsiva** com modo claro/escuro automático
+
 ## Componentes Técnicos
 
 ### Embeddings
@@ -158,23 +188,55 @@ Classe `RAGQueryEngine` que integra:
    Pergunta → Embedding → Busca ChromaDB → Top-K docs → Prompt + LLM → Resposta
    ```
 
-## Comandos Disponíveis
+## Comandos Disponíveis (Makefile)
 
+### Inicialização e Setup
 ```bash
-# Inicialização
-make init              # Setup completo do projeto
-make venv              # Criar ambiente virtual
-make requirements      # Instalar dependências
-make get_llama_model   # Baixar modelo LLaMA
+make init              # Setup completo do projeto (venv + deps + modelo)
+make venv              # Criar ambiente virtual Python
+make requirements      # Instalar dependências do requirements.txt
+make get_llama_model   # Baixar modelo LLaMA-2-7B-Chat-GGUF
+make fix_pip           # Corrigir problemas com pip
+```
 
-# Dados e Bases Vetoriais
-make chroma TYPE=books # Criar base para livros
+### Dados e Bases Vetoriais
+```bash
+# Criar base de dados ChromaDB
+make chroma TYPE=books                    # Para livros (Alice in Wonderland)
+make chroma TYPE=azure                    # Para documentação Azure (em desenvolvimento)
 
-# Desenvolvimento
-make format            # Formatar código com ruff
-make lint              # Verificar qualidade do código
-make test              # Executar testes
+# Opções avançadas do ChromaDB
+make chroma TYPE=books CHUNK_SIZE=500     # Customizar tamanho dos chunks
+make chroma TYPE=books CHUNK_OVERLAP=100  # Customizar sobreposição
+make chroma TYPE=books VERBOSE=1          # Saída detalhada
+
+# Obter dados externos
+make get_azure_data    # Baixar documentação do Azure (Microsoft Docs)
+```
+
+### Interface e Aplicação
+```bash
+make streamlit         # Iniciar dashboard Streamlit (localhost:8501)
+```
+
+### Desenvolvimento e Qualidade
+```bash
+make format            # Formatar código com ruff (auto-fix)
+make lint              # Verificar qualidade do código (ruff check)
+make test              # Executar testes unitários (pytest)
 make clean             # Limpar cache e arquivos temporários
+```
+
+### Exemplos de Uso Comum
+```bash
+# Setup inicial completo
+make init && make chroma TYPE=books && make streamlit
+
+# Desenvolvimento iterativo
+make format && make lint && make test
+
+# Reconstruir base de dados com configurações específicas
+make clean && make chroma TYPE=books CHUNK_SIZE=400 VERBOSE=1
 ```
 
 ## Notebooks de Análise
@@ -234,11 +296,14 @@ print(f"Similarity scores: {response.similarity_scores}")
 
 ## Próximos Passos
 
-- [ ] Interface web com Streamlit/Gradio
+- [x] **Interface web com Streamlit** ✅ *Implementado*
 - [ ] Suporte a múltiplos formatos (PDF, DOC, etc.)
 - [ ] Cache de consultas para performance
 - [ ] Métricas de avaliação do sistema RAG
 - [ ] Deploy com Docker
+- [ ] API REST para integração externa
+- [ ] Suporte a múltiplos idiomas
+- [ ] Sistema de feedback de usuário
 
 ---
 

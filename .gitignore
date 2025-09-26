@@ -184,3 +184,6 @@ cython_debug/
 
 # models
 *.gguf
+
+*.bin
+*.sqlite3

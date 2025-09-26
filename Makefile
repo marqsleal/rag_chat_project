@@ -15,6 +15,12 @@ VENV_BIN = $(VENV_NAME)/bin
 #################################################################################
 
 
+## Initiate project (create venv, install dependencies, get data)
+.PHONY: init
+init: venv requirements get_llama_model
+	@echo "Project initialized! 🚀✨"
+
+
 ## Create Python virtual environment
 .PHONY: venv
 venv:
@@ -54,27 +60,61 @@ clean:
 ## Lint using ruff (use `make format` to do formatting)
 .PHONY: lint
 lint:
-	@ruff format --check
-	@ruff check
+	@$(VENV_BIN)/python -m ruff format --check
+	@$(VENV_BIN)/python -m ruff check
 
 
 ## Format source code with ruff
 .PHONY: format
 format:
-	@ruff check --fix
-	@ruff format
+	@$(VENV_BIN)/python -m ruff check --fix
+	@$(VENV_BIN)/python -m ruff format
 
 
 ## Run tests
 .PHONY: test
 test:
-	@python -m pytest tests
+	@$(VENV_BIN)/python -m pytest tests/ -v
 
 
 ## Get llama model from Hugging Face
 .PHONY: get_llama_model
 get_llama_model:
-	@hf download TheBloke/Llama-2-7B-Chat-GGUF llama-2-7b-chat.Q4_K_M.gguf --local-dir ./models
+	@echo "Downloading Llama model..."
+	@. $(VENV_BIN)/activate && \
+	hf download TheBloke/Llama-2-7B-Chat-GGUF llama-2-7b-chat.Q4_K_M.gguf --local-dir ./models
+
+
+## Create Chroma vector database (use TYPE=books|azure, default shows help)
+.PHONY: chroma
+chroma:
+	@if [ -z "$(TYPE)" ]; then \
+		echo "Chroma Database Creation"; \
+		echo "========================"; \
+		echo ""; \
+		echo "Usage: make chroma TYPE=<database_type> [OPTIONS]"; \
+		echo ""; \
+		echo "Required:"; \
+		echo "  TYPE=books|azure      Database type to create"; \
+		echo ""; \
+		echo "Optional:"; \
+		echo "  CHUNK_SIZE=N          Size of text chunks (default: 300)"; \
+		echo "  CHUNK_OVERLAP=N       Overlap between chunks (default: 100)"; \
+		echo "  MODEL_NAME=model      HuggingFace model name"; \
+		echo "  VERBOSE=1             Enable verbose output"; \
+		echo ""; \
+		echo "Examples:"; \
+		echo "  make chroma TYPE=books"; \
+		echo "  make chroma TYPE=azure VERBOSE=1"; \
+		echo "  make chroma TYPE=books CHUNK_SIZE=500"; \
+	else \
+		echo "Creating $(TYPE) Chroma database..."; \
+		$(VENV_BIN)/python rag_project/create_chroma_database.py $(TYPE) \
+			$(if $(CHUNK_SIZE),--chunk-size $(CHUNK_SIZE)) \
+			$(if $(CHUNK_OVERLAP),--chunk-overlap $(CHUNK_OVERLAP)) \
+			$(if $(MODEL_NAME),--model-name $(MODEL_NAME)) \
+			$(if $(VERBOSE),--verbose); \
+	fi
 
 
 ## Get data from the data repository
@@ -87,29 +127,4 @@ get_azure_data:
 .PHONY: fix_pip
 fix_pip:
 	@curl -sS https://bootstrap.pypa.io/get-pip.py | $(VENV_BIN)/python && \
-	@$(VENV_BIN)/python -m pip install --upgrade pip setuptools wheel
-
-
-#################################################################################
-# PROJECT RULES                                                                 #
-#################################################################################
-
-
-
-#################################################################################
-# Self Documenting Commands                                                     #
-#################################################################################
-
-.DEFAULT_GOAL := help
-
-define PRINT_HELP_PYSCRIPT
-import re, sys; \
-lines = '\n'.join([line for line in sys.stdin]); \
-matches = re.findall(r'\n## (.*)\n[\s\S]+?\n([a-zA-Z_-]+):', lines); \
-print('Available rules:\n'); \
-print('\n'.join(['{:25}{}'.format(*reversed(match)) for match in matches]))
-endef
-export PRINT_HELP_PYSCRIPT
-
-help:
-	@$(PYTHON_INTERPRETER) -c "${PRINT_HELP_PYSCRIPT}" < $(MAKEFILE_LIST)
+	$(VENV_BIN)/python -m pip install --upgrade pip setuptools wheel

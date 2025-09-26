@@ -1,4 +1,3 @@
-
 from langchain_huggingface import HuggingFaceEmbeddings
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -9,18 +8,12 @@ from rag_project.constants import (
 
 def init_embeddings() -> HuggingFaceEmbeddings:
     """Initialize and return HuggingFace embeddings model."""
-    model_name = SENTENCE_TRANSFORMERS_MODEL_NAME 
+    model_name = SENTENCE_TRANSFORMERS_MODEL_NAME
     model_kwargs = {"device": "cpu"}
-    encode_kwargs = {
-        "batch_size": 8,
-        "normalize_embeddings": True,
-        "convert_to_numpy": True
-    }
-    
+    encode_kwargs = {"batch_size": 8, "normalize_embeddings": True, "convert_to_numpy": True}
+
     return HuggingFaceEmbeddings(
-        model_name=model_name,
-        model_kwargs=model_kwargs,
-        encode_kwargs=encode_kwargs
+        model_name=model_name, model_kwargs=model_kwargs, encode_kwargs=encode_kwargs
     )
 
 

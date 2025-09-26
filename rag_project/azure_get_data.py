@@ -74,16 +74,14 @@ def clone_and_filter_docs(repo_url: str, target_dir: str):
             copied_files = 0
             for md_file in articles_dir.rglob("*.md"):
                 try:
-                    # Modificação principal: usar apenas o nome do arquivo
                     destination = target_path / md_file.name
-                    
-                    # Adicionar um sufixo numérico se o arquivo já existir
+
                     counter = 1
                     while destination.exists():
                         stem = md_file.stem
                         destination = target_path / f"{stem}_{counter}{md_file.suffix}"
                         counter += 1
-                    
+
                     shutil.copy2(md_file, destination)
                     copied_files += 1
                     if copied_files % 100 == 0:
